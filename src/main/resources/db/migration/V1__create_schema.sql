@@ -1,0 +1,1 @@
+-- TODO: migración V1 - crear esquema

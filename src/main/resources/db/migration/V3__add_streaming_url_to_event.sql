@@ -1,0 +1,1 @@
+-- TODO: migración V3 - añadir columna streaming_url a event

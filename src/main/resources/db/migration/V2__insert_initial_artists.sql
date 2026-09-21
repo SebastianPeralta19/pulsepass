@@ -1,0 +1,1 @@
+-- TODO: migración V2 - insertar artistas iniciales
