@@ -8,8 +8,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
+
+    Optional<Ticket> findByTicketCode(String ticketCode);
+
+    List<Ticket> findByUserEmailIgnoreCaseOrderByPurchaseDateDesc(String email);
 
     // FR-TKT-006: tickets de un usuario por email, y opcionalmente por estado
     List<Ticket> findByUserEmail(String email);
