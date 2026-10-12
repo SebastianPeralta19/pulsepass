@@ -1,67 +1,144 @@
 # PulsePass
 
-Aplicación para descubrir eventos y gestionar tickets (Spring Boot 4 + JPA + Flyway + PostgreSQL + MapStruct).
+Plataforma de eventos, artistas y entradas. Caso de estudio académico construido por capas:
 
-## Modelo
+1. **Persistencia**: entidades JPA, Flyway, PostgreSQL y Testcontainers.
+2. **Servicios**: reglas de negocio, DTOs `record`, MapStruct, transacciones y excepciones propias.
+3. **Controladores REST**: endpoints HTTP, Bean Validation y manejo global de errores.
 
-```
-Venue 1 ───── N Event
-Event N ───── M Artist      (tabla event_artists)
-User  1 ───── 1 UserProfile
-User  1 ───── N Ticket
-Event 1 ───── N Ticket
-```
+## Stack
 
-Enums: `EventCategory`, `EventStatus` (DRAFT, PUBLISHED, SOLD_OUT, CANCELLED, FINISHED),
-`TicketType` (GENERAL, VIP, BACKSTAGE, STUDENT), `TicketStatus` (RESERVED, PAID, CANCELLED, USED).
+Java 21 · Spring Boot 4 · Spring MVC · Spring Data JPA / Hibernate · PostgreSQL · Flyway · MapStruct · JUnit 5 · Mockito · AssertJ · MockMvc · Testcontainers
 
-## Migraciones
-
-Flyway, en `src/main/resources/db/migration`:
-
-- `V1__create_schema.sql` – esquema completo
-- `V2__insert_initial_artists.sql` – artistas iniciales
-- `V3__add_streaming_url_to_event.sql` – columna `streaming_url`
-
-## Consultas
-
-Los repositories (`com.pulsepass.repository`) exponen consultas derivadas y `@Query` para
-búsquedas por artista, ciudad, estado, conteo de tickets pagados, etc.
-
-## Capa de servicios
+## Arquitectura
 
 ```
-Controller (futuro) → Service (interfaz) → ServiceImpl → Repository → Entity
-                                              ├── Mapper (MapStruct) → DTO (record)
-                                              └── Reglas de negocio + @Transactional
+Cliente HTTP → Controller → Service → Repository → PostgreSQL
+                   ↓
+          GlobalExceptionHandler → ErrorResponse
 ```
 
-| Paquete | Contenido |
+- El Controller solo traduce HTTP. No contiene reglas de negocio ni accede a repositories.
+- Ningún endpoint expone entidades JPA: todo se transporta con DTOs.
+- Los errores se centralizan en `GlobalExceptionHandler` (`@RestControllerAdvice`).
+
+## Endpoints
+
+### Venues
+
+| Método | Endpoint | Descripción | Éxito |
+|---|---|---|---|
+| GET | `/api/venues/{code}` | Consultar venue por código | 200 |
+| GET | `/api/venues/active` | Listar venues activos | 200 |
+
+### Eventos
+
+| Método | Endpoint | Descripción | Éxito |
+|---|---|---|---|
+| POST | `/api/events` | Crear evento (inicia en `DRAFT`) | 201 |
+| GET | `/api/events/{eventCode}` | Consultar evento por código | 200 |
+| GET | `/api/events/published` | Listar eventos publicados | 200 |
+| PATCH | `/api/events/{eventCode}/publish` | Publicar evento (`DRAFT → PUBLISHED`) | 200 |
+| POST | `/api/events/{eventCode}/artists/{artistId}` | Asociar artista a un evento | 200 |
+| GET | `/api/events/by-artist?stageName=...` | Eventos de un artista | 200 |
+| GET | `/api/events/{eventCode}/tickets/paid` | Tickets `PAID` de un evento | 200 |
+
+### Artistas
+
+| Método | Endpoint | Descripción | Éxito |
+|---|---|---|---|
+| GET | `/api/artists/{id}` | Consultar artista por ID | 200 |
+| GET | `/api/artists/by-stage-name?stageName=...` | Consultar por nombre artístico | 200 |
+| GET | `/api/artists/active` | Listar artistas activos | 200 |
+
+### Usuarios
+
+| Método | Endpoint | Descripción | Éxito |
+|---|---|---|---|
+| POST | `/api/users` | Registrar usuario con perfil | 201 |
+| GET | `/api/users/by-email?email=...` | Consultar por email | 200 |
+| GET | `/api/users/by-username?username=...` | Consultar por username | 200 |
+
+### Tickets
+
+| Método | Endpoint | Descripción | Éxito |
+|---|---|---|---|
+| POST | `/api/tickets` | Comprar ticket (queda `PAID`) | 201 |
+| GET | `/api/tickets/{ticketCode}` | Consultar ticket por código | 200 |
+| GET | `/api/tickets/by-user?email=...` | Tickets de un usuario | 200 |
+| PATCH | `/api/tickets/{ticketCode}/cancel` | Cancelar (`PAID → CANCELLED`) | 200 |
+| PATCH | `/api/tickets/{ticketCode}/use` | Marcar como usado (`PAID → USED`) | 200 |
+
+## Códigos HTTP
+
+| Código | Cuándo |
 |---|---|
-| `service` / `service.impl` | `VenueService`, `ArtistService`, `EventService`, `UserService`, `TicketService` y sus implementaciones |
-| `dto.request` / `dto.response` | DTOs inmutables (`record`); nunca se exponen entidades JPA |
-| `mapper` | Mappers MapStruct Entity → DTO |
-| `exception` | `ResourceNotFoundException`, `DuplicateResourceException`, `BusinessRuleException` |
-| `config` | `ClockConfig` (el `Clock` se inyecta para poder fijar la fecha en los tests) |
+| 200 | Consulta o actualización correcta |
+| 201 | Creación de evento, usuario o ticket |
+| 400 | Bean Validation fallida, JSON mal formado o parámetro inválido/faltante |
+| 404 | Recurso inexistente (`ResourceNotFoundException`) |
+| 409 | Duplicado (`DuplicateResourceException`) o regla de negocio incumplida (`BusinessRuleException`) |
+| 500 | Error inesperado (sin detalles internos) |
 
-Decisiones de diseño:
+## Formato de errores
 
-- **Precio**: lo calcula el sistema (`TicketPricingStrategy`), el cliente nunca lo envía.
-  `GENERAL` = precio base, `STUDENT` = x0.70, `VIP` = x2.50, `BACKSTAGE` = x4.00.
-  El precio base se configura con `pulsepass.pricing.base-price` (por defecto `100.00`).
-- **Email**: se guarda en minúsculas y la unicidad se valida ignorando mayúsculas.
-- **Edad mínima**: se evalúa en la fecha del evento, no en la fecha de compra.
-- **Compra**: es atómica (`@Transactional`); si completa el aforo, el evento pasa a `SOLD_OUT`
-  en la misma transacción.
-- **Concurrencia**: fuera de alcance (ver sección 53 del PRD); dos compras simultáneas podrían
-  ver el mismo cupo.
+Todos los errores usan el mismo contrato:
+
+```json
+{
+  "timestamp": "2026-10-11T20:00:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "details": {
+    "eventCode": "Event code is required",
+    "venueCode": "Venue code is required"
+  }
+}
+```
+
+## Ejemplos
+
+Crear un evento:
+
+```bash
+curl -X POST http://localhost:8080/api/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "eventCode": "CMF-2026",
+    "name": "Caribbean Music Fest 2026",
+    "description": "Festival de música caribeña",
+    "category": "MUSIC",
+    "eventDate": "2030-12-01T20:00:00",
+    "minimumAge": 18,
+    "venueCode": "VEN-SMR-01"
+  }'
+```
+
+Comprar un ticket:
+
+```bash
+curl -X POST http://localhost:8080/api/tickets \
+  -H "Content-Type: application/json" \
+  -d '{ "userEmail": "andrea@email.com", "eventCode": "CMF-2026", "type": "VIP" }'
+```
 
 ## Ejecución de pruebas
 
-```bash
-# Unit tests de Service (JUnit 5 + Mockito + AssertJ). No necesitan Docker ni PostgreSQL
-./mvnw test -Dtest='*ServiceImplTest,DefaultTicketPricingStrategyTest'
+Los comandos se ejecutan desde la carpeta `demo/`:
 
-# Toda la suite (los tests de repository usan Testcontainers y requieren Docker encendido)
+```bash
 ./mvnw clean test
+```
+
+| Capa | Tipo de prueba | Requiere Docker |
+|---|---|---|
+| Repository | Integración con PostgreSQL real (Testcontainers) | Sí |
+| Service | Unit tests con Mockito y AssertJ | No |
+| Controller | `@WebMvcTest` + MockMvc con services simulados (`@MockitoBean`) | No |
+
+Para ejecutar solo las pruebas de controller:
+
+```bash
+./mvnw test -Dtest='*ControllerTest'
 ```
