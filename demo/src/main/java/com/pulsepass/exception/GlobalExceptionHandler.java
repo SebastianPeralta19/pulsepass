@@ -1,10 +1,12 @@
 package com.pulsepass.exception;
 
 import com.pulsepass.dto.response.ErrorResponse;
+import com.pulsepass.security.SecurityMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -36,6 +38,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<ErrorResponse> handleBusinessRule(BusinessRuleException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage(), Map.of());
+    }
+
+    /**
+     * Login fallido (credenciales inválidas o usuario inactivo). Respuesta
+     * genérica: no informa si el usuario existe.
+     */
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailed(AuthenticationFailedException ex) {
+        log.warn("Authentication failed: {}", ex.getMessage());
+        return build(HttpStatus.UNAUTHORIZED, "Invalid credentials", Map.of());
+    }
+
+    /**
+     * Autorización denegada en la frontera de negocio (propiedad de recursos,
+     * reglas de método) o por method security. El detalle interno no se expone.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Access denied: {}", ex.getMessage());
+        return build(HttpStatus.FORBIDDEN, SecurityMessages.FORBIDDEN_MESSAGE, Map.of());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -9,6 +9,7 @@ import com.pulsepass.exception.DuplicateResourceException;
 import com.pulsepass.exception.ResourceNotFoundException;
 import com.pulsepass.mapper.UserMapper;
 import com.pulsepass.repository.UserRepository;
+import com.pulsepass.service.AuthorizationService;
 import com.pulsepass.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +23,16 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final AuthorizationService authorizationService;
     private final Clock clock;
 
-    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, Clock clock) {
+    public UserServiceImpl(UserRepository userRepository,
+                           UserMapper userMapper,
+                           AuthorizationService authorizationService,
+                           Clock clock) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.authorizationService = authorizationService;
         this.clock = clock;
     }
 
@@ -62,17 +68,19 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserResponse findByEmail(String email) {
-        return userRepository.findByEmailIgnoreCase(email)
-                .map(userMapper::toResponse)
+        User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+        authorizationService.requireSelfOrAdmin(user.getId());
+        return userMapper.toResponse(user);
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserResponse findByUsername(String username) {
-        return userRepository.findByUsername(username)
-                .map(userMapper::toResponse)
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        authorizationService.requireSelfOrAdmin(user.getId());
+        return userMapper.toResponse(user);
     }
 
     private void validateRegisterRequest(RegisterUserRequest request) {

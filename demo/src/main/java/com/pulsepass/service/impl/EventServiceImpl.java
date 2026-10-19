@@ -7,6 +7,7 @@ import com.pulsepass.dto.request.CreateEventRequest;
 import com.pulsepass.dto.response.EventResponse;
 import com.pulsepass.dto.response.EventSummaryResponse;
 import com.pulsepass.enums.EventStatus;
+import com.pulsepass.enums.Role;
 import com.pulsepass.exception.BusinessRuleException;
 import com.pulsepass.exception.DuplicateResourceException;
 import com.pulsepass.exception.ResourceNotFoundException;
@@ -14,7 +15,9 @@ import com.pulsepass.mapper.EventMapper;
 import com.pulsepass.repository.ArtistRepository;
 import com.pulsepass.repository.EventRepository;
 import com.pulsepass.repository.VenueRepository;
+import com.pulsepass.service.AuthorizationService;
 import com.pulsepass.service.EventService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,22 +32,26 @@ public class EventServiceImpl implements EventService {
     private final VenueRepository venueRepository;
     private final ArtistRepository artistRepository;
     private final EventMapper eventMapper;
+    private final AuthorizationService authorizationService;
     private final Clock clock;
 
     public EventServiceImpl(EventRepository eventRepository,
                             VenueRepository venueRepository,
                             ArtistRepository artistRepository,
                             EventMapper eventMapper,
+                            AuthorizationService authorizationService,
                             Clock clock) {
         this.eventRepository = eventRepository;
         this.venueRepository = venueRepository;
         this.artistRepository = artistRepository;
         this.eventMapper = eventMapper;
+        this.authorizationService = authorizationService;
         this.clock = clock;
     }
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public EventResponse create(CreateEventRequest request) {
         validateCreateRequest(request);
 
@@ -79,7 +86,12 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public EventResponse findByCode(String eventCode) {
-        return eventMapper.toResponse(getEvent(eventCode));
+        Event event = getEvent(eventCode);
+        if (event.getStatus() != EventStatus.PUBLISHED && !isPrivileged()) {
+            // No se revela la existencia de borradores (FR-SEC-EVT-02).
+            throw new ResourceNotFoundException("Event not found: " + eventCode);
+        }
+        return eventMapper.toResponse(event);
     }
 
     @Override
@@ -93,6 +105,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public EventResponse publish(String eventCode) {
         Event event = getEvent(eventCode);
 
@@ -113,6 +126,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public EventResponse addArtist(String eventCode, Long artistId) {
         Event event = getEvent(eventCode);
         Artist artist = artistRepository.findById(artistId)
@@ -138,13 +152,21 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public List<EventSummaryResponse> findByArtist(String stageName) {
+        boolean privileged = isPrivileged();
         return eventRepository.findByArtistStageName(stageName)
                 .stream()
+                // La ruta es pública: sólo se exponen eventos publicados salvo
+                // para STAFF/ADMIN (FR-SEC-EVT-06).
+                .filter(event -> privileged || event.getStatus() == EventStatus.PUBLISHED)
                 .map(eventMapper::toSummary)
                 .toList();
     }
 
     // ---------- helpers ----------
+
+    private boolean isPrivileged() {
+        return authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN);
+    }
 
     private Event getEvent(String eventCode) {
         return eventRepository.findByEventCode(eventCode)

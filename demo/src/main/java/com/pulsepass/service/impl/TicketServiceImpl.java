@@ -13,8 +13,10 @@ import com.pulsepass.mapper.TicketMapper;
 import com.pulsepass.repository.EventRepository;
 import com.pulsepass.repository.TicketRepository;
 import com.pulsepass.repository.UserRepository;
+import com.pulsepass.service.AuthorizationService;
 import com.pulsepass.service.TicketPricingStrategy;
 import com.pulsepass.service.TicketService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,7 @@ public class TicketServiceImpl implements TicketService {
     private final EventRepository eventRepository;
     private final TicketMapper ticketMapper;
     private final TicketPricingStrategy pricingStrategy;
+    private final AuthorizationService authorizationService;
     private final Clock clock;
 
     public TicketServiceImpl(TicketRepository ticketRepository,
@@ -41,12 +44,14 @@ public class TicketServiceImpl implements TicketService {
                              EventRepository eventRepository,
                              TicketMapper ticketMapper,
                              TicketPricingStrategy pricingStrategy,
+                             AuthorizationService authorizationService,
                              Clock clock) {
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.ticketMapper = ticketMapper;
         this.pricingStrategy = pricingStrategy;
+        this.authorizationService = authorizationService;
         this.clock = clock;
     }
 
@@ -63,6 +68,8 @@ public class TicketServiceImpl implements TicketService {
         // 1. Usuario
         User user = userRepository.findByEmailIgnoreCase(request.userEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + request.userEmail()));
+        // El correo del request debe representar a la identidad autenticada.
+        authorizationService.requirePurchaseFor(user.getId());
         if (!user.isActive()) {
             throw new BusinessRuleException("User is not active: " + user.getEmail());
         }
@@ -117,12 +124,18 @@ public class TicketServiceImpl implements TicketService {
     @Override
     @Transactional(readOnly = true)
     public TicketResponse findByCode(String ticketCode) {
-        return ticketMapper.toResponse(getTicket(ticketCode));
+        Ticket ticket = getTicket(ticketCode);
+        // Antí-IDOR: la propiedad se decide en la frontera de negocio.
+        authorizationService.requireTicketRead(ticket);
+        return ticketMapper.toResponse(ticket);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TicketResponse> findByUserEmail(String email) {
+        User owner = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+        authorizationService.requireSelfOrAdmin(owner.getId());
         return ticketRepository.findByUserEmailIgnoreCaseOrderByPurchaseDateDesc(email)
                 .stream()
                 .map(ticketMapper::toResponse)
@@ -131,6 +144,7 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public List<TicketResponse> findPaidTicketsByEvent(String eventCode) {
         return ticketRepository.findByEventEventCodeAndStatus(eventCode, TicketStatus.PAID)
                 .stream()
@@ -142,6 +156,8 @@ public class TicketServiceImpl implements TicketService {
     @Transactional
     public TicketResponse cancel(String ticketCode) {
         Ticket ticket = getTicket(ticketCode);
+        // Autorización de propiedad antes de mutar el estado.
+        authorizationService.requireTicketCancellation(ticket);
 
         if (ticket.getStatus() == TicketStatus.USED) {
             throw new BusinessRuleException("A USED ticket cannot be cancelled: " + ticketCode);
@@ -162,6 +178,7 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
     public TicketResponse markAsUsed(String ticketCode) {
         Ticket ticket = getTicket(ticketCode);
 
