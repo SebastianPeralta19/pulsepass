@@ -17,6 +17,7 @@ import com.pulsepass.mapper.TicketMapper;
 import com.pulsepass.repository.EventRepository;
 import com.pulsepass.repository.TicketRepository;
 import com.pulsepass.repository.UserRepository;
+import com.pulsepass.service.AuthorizationService;
 import com.pulsepass.service.TicketPricingStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,8 @@ class TicketServiceImplTest {
     private TicketMapper ticketMapper;
     @Mock
     private TicketPricingStrategy pricingStrategy;
+    @Mock
+    private AuthorizationService authorizationService;
 
     private TicketServiceImpl service;
 
@@ -69,7 +72,7 @@ class TicketServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new TicketServiceImpl(ticketRepository, userRepository, eventRepository,
-                ticketMapper, pricingStrategy, CLOCK);
+                ticketMapper, pricingStrategy, authorizationService, CLOCK);
         venue = new Venue("VEN-SMR-01", "Marina Convention Center", "Santa Marta", "Calle 1", 3, true);
         event = new Event("CMF-2026", "Caribbean Music Fest 2026", "Festival", EventCategory.MUSIC,
                 EventStatus.PUBLISHED, EVENT_DATE, 18, venue);
@@ -485,6 +488,8 @@ class TicketServiceImplTest {
     @Test
     void findByUserEmail_usesCaseInsensitiveOrderedQuery() {
         // ARRANGE
+        when(userRepository.findByEmailIgnoreCase("ANDREA@email.com"))
+                .thenReturn(Optional.of(andrea()));
         when(ticketRepository.findByUserEmailIgnoreCaseOrderByPurchaseDateDesc("ANDREA@email.com"))
                 .thenReturn(List.of(ticket(TicketStatus.PAID, event)));
         stubMapper();
@@ -494,6 +499,69 @@ class TicketServiceImplTest {
 
         // ASSERT
         assertThat(result).hasSize(1);
+    }
+
+    // ---------- autorización (FR-SEC-TKT) ----------
+
+    @Test
+    void findByUserEmail_checksOwnershipBeforeReturningTickets() {
+        // ARRANGE
+        User andrea = andrea();
+        when(userRepository.findByEmailIgnoreCase("andrea@email.com")).thenReturn(Optional.of(andrea));
+        when(ticketRepository.findByUserEmailIgnoreCaseOrderByPurchaseDateDesc("andrea@email.com"))
+                .thenReturn(List.of());
+
+        // ACT
+        service.findByUserEmail("andrea@email.com");
+
+        // ASSERT: la frontera de negocio decide la propiedad, no el cliente.
+        verify(authorizationService).requireSelfOrAdmin(andrea.getId());
+    }
+
+    @Test
+    void findByCode_checksTicketReadAuthorization() {
+        // ARRANGE
+        Ticket paid = ticket(TicketStatus.PAID, event);
+        when(ticketRepository.findByTicketCode("TKT-1")).thenReturn(Optional.of(paid));
+        stubMapper();
+
+        // ACT
+        service.findByCode("TKT-1");
+
+        // ASSERT
+        verify(authorizationService).requireTicketRead(paid);
+    }
+
+    @Test
+    void cancel_checksTicketCancellationAuthorization() {
+        // ARRANGE
+        Ticket paid = ticket(TicketStatus.PAID, event);
+        when(ticketRepository.findByTicketCode("TKT-1")).thenReturn(Optional.of(paid));
+        when(ticketRepository.save(any(Ticket.class))).then(returnsFirstArg());
+        stubMapper();
+
+        // ACT
+        service.cancel("TKT-1");
+
+        // ASSERT
+        verify(authorizationService).requireTicketCancellation(paid);
+    }
+
+    @Test
+    void purchase_checksThatRequesterRepresentsTargetUser() {
+        // ARRANGE
+        User andrea = andrea();
+        stubUserAndEvent(andrea);
+        when(ticketRepository.countPaidTicketsByEventCode("CMF-2026")).thenReturn(0L);
+        when(pricingStrategy.priceFor(TicketType.VIP)).thenReturn(new BigDecimal("250.00"));
+        when(ticketRepository.save(any(Ticket.class))).then(returnsFirstArg());
+        stubMapper();
+
+        // ACT
+        service.purchase(purchase("andrea"));
+
+        // ASSERT
+        verify(authorizationService).requirePurchaseFor(andrea.getId());
     }
 
     @Test

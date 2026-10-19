@@ -6,6 +6,7 @@ import com.pulsepass.dto.response.EventResponse;
 import com.pulsepass.dto.response.EventSummaryResponse;
 import com.pulsepass.enums.EventCategory;
 import com.pulsepass.enums.EventStatus;
+import com.pulsepass.enums.Role;
 import com.pulsepass.exception.BusinessRuleException;
 import com.pulsepass.exception.ResourceNotFoundException;
 import com.pulsepass.service.EventService;
@@ -31,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(EventController.class)
-class EventControllerTest {
+class EventControllerTest extends SecuredControllerTestBase {
 
     private static final String VALID_EVENT_JSON = """
             {
@@ -75,6 +76,10 @@ class EventControllerTest {
                 "VEN-SMR-01", "Marina Convention Center");
     }
 
+    private String adminToken() {
+        return bearer(user(2L, "admin", Role.ADMIN));
+    }
+
     // TEST-CTRL-EVT-001 / AC-CTRL003
     @Test
     void shouldReturn201WhenEventIsCreated() throws Exception {
@@ -82,6 +87,7 @@ class EventControllerTest {
                 .thenReturn(event(EventStatus.DRAFT, List.of()));
 
         mockMvc.perform(post("/api/events")
+                        .header("Authorization", adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_EVENT_JSON))
                 .andExpect(status().isCreated())
@@ -97,6 +103,7 @@ class EventControllerTest {
     @Test
     void shouldReturn400AndNotCallServiceWhenRequestIsInvalid() throws Exception {
         mockMvc.perform(post("/api/events")
+                        .header("Authorization", adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(INVALID_EVENT_JSON))
                 .andExpect(status().isBadRequest())
@@ -113,6 +120,7 @@ class EventControllerTest {
     @Test
     void shouldReturn400WhenJsonIsMalformed() throws Exception {
         mockMvc.perform(post("/api/events")
+                        .header("Authorization", adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{ esto no es json"))
                 .andExpect(status().isBadRequest())
@@ -121,7 +129,7 @@ class EventControllerTest {
         verify(eventService, never()).create(any());
     }
 
-    // TEST-CTRL-EVT-003
+    // TEST-CTRL-EVT-003 (público)
     @Test
     void shouldReturn200WhenEventExists() throws Exception {
         when(eventService.findByCode("CMF-2026")).thenReturn(event(EventStatus.DRAFT, List.of()));
@@ -149,7 +157,7 @@ class EventControllerTest {
         verify(eventService).findByCode("NOPE-1");
     }
 
-    // TEST-CTRL-EVT-005
+    // TEST-CTRL-EVT-005 (público)
     @Test
     void shouldReturn200WithPublishedEvents() throws Exception {
         when(eventService.findPublishedEvents()).thenReturn(List.of(summary()));
@@ -169,7 +177,7 @@ class EventControllerTest {
     void shouldReturn200WhenEventIsPublished() throws Exception {
         when(eventService.publish("CMF-2026")).thenReturn(event(EventStatus.PUBLISHED, List.of()));
 
-        mockMvc.perform(patch("/api/events/CMF-2026/publish"))
+        mockMvc.perform(patch("/api/events/CMF-2026/publish").header("Authorization", adminToken()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value("PUBLISHED"));
@@ -183,7 +191,7 @@ class EventControllerTest {
         when(eventService.publish("CMF-2026"))
                 .thenThrow(new BusinessRuleException("Only DRAFT events can be published."));
 
-        mockMvc.perform(patch("/api/events/CMF-2026/publish"))
+        mockMvc.perform(patch("/api/events/CMF-2026/publish").header("Authorization", adminToken()))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(409))
@@ -200,7 +208,7 @@ class EventControllerTest {
         when(eventService.addArtist("CMF-2026", 1L))
                 .thenReturn(event(EventStatus.DRAFT, List.of(solarBeat)));
 
-        mockMvc.perform(post("/api/events/CMF-2026/artists/1"))
+        mockMvc.perform(post("/api/events/CMF-2026/artists/1").header("Authorization", adminToken()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.artists.length()").value(1))
@@ -209,7 +217,7 @@ class EventControllerTest {
         verify(eventService).addArtist("CMF-2026", 1L);
     }
 
-    // TEST-CTRL-EVT-009
+    // TEST-CTRL-EVT-009 (público)
     @Test
     void shouldReturn200WhenSearchingEventsByArtist() throws Exception {
         when(eventService.findByArtist("Solar Beat")).thenReturn(List.of(summary()));
@@ -230,5 +238,28 @@ class EventControllerTest {
                 .andExpect(jsonPath("$.message").value("Missing required parameter: stageName"));
 
         verify(eventService, never()).findByArtist(any());
+    }
+
+    // T-SEC-003: crear eventos exige rol ADMIN; el Service nunca se invoca.
+    @Test
+    void shouldReturn403AndNotCallServiceWhenNonAdminCreatesEvent() throws Exception {
+        mockMvc.perform(post("/api/events")
+                        .header("Authorization", bearer(user(1L, "andrea", Role.USER)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_EVENT_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.trace").doesNotExist());
+
+        verify(eventService, never()).create(any());
+    }
+
+    // T-SEC-002: publicar un evento exige identidad válida.
+    @Test
+    void shouldReturn401WhenPublishingAnonymously() throws Exception {
+        mockMvc.perform(patch("/api/events/CMF-2026/publish"))
+                .andExpect(status().isUnauthorized());
+
+        verify(eventService, never()).publish(any());
     }
 }

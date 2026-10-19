@@ -1,8 +1,11 @@
 package com.pulsepass.controller;
 
+import com.pulsepass.domain.User;
 import com.pulsepass.dto.request.RegisterUserRequest;
 import com.pulsepass.dto.response.UserResponse;
+import com.pulsepass.enums.Role;
 import com.pulsepass.exception.DuplicateResourceException;
+import com.pulsepass.service.AuthService;
 import com.pulsepass.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +27,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
-class UserControllerTest {
+class UserControllerTest extends SecuredControllerTestBase {
 
     private static final String VALID_USER_JSON = """
             {
               "username": "andrea",
               "email": "andrea@email.com",
+              "password": "clave-segura-123",
               "firstName": "Andrea",
               "lastName": "Gomez",
               "phone": "3001234567",
@@ -42,6 +46,20 @@ class UserControllerTest {
             {
               "username": "andrea",
               "email": "no-es-un-email",
+              "password": "clave-segura-123",
+              "firstName": "Andrea",
+              "lastName": "Gomez",
+              "phone": "3001234567",
+              "city": "Santa Marta",
+              "birthDate": "2001-05-20"
+            }
+            """;
+
+    private static final String SHORT_PASSWORD_USER_JSON = """
+            {
+              "username": "andrea",
+              "email": "andrea@email.com",
+              "password": "corta",
               "firstName": "Andrea",
               "lastName": "Gomez",
               "phone": "3001234567",
@@ -56,15 +74,23 @@ class UserControllerTest {
     @MockitoBean
     private UserService userService;
 
+    @MockitoBean
+    private AuthService authService;
+
     private UserResponse andrea() {
         return new UserResponse(1L, "andrea", "andrea@email.com", true,
                 "Andrea", "Gomez", "3001234567", "Santa Marta", LocalDate.of(2001, 5, 20));
     }
 
+    /** Identidad de la propia Andrea: única autorizada a consultar sus datos. */
+    private User andreaIdentity() {
+        return user(1L, "andrea", Role.USER);
+    }
+
     // TEST-CTRL-USR-001 / AC-CTRL007
     @Test
     void shouldReturn201WhenUserIsRegistered() throws Exception {
-        when(userService.register(any(RegisterUserRequest.class))).thenReturn(andrea());
+        when(authService.register(any(RegisterUserRequest.class))).thenReturn(andrea());
 
         mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,7 +101,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.email").value("andrea@email.com"))
                 .andExpect(jsonPath("$.active").value(true));
 
-        verify(userService).register(any(RegisterUserRequest.class));
+        verify(authService).register(any(RegisterUserRequest.class));
     }
 
     // TEST-CTRL-USR-002
@@ -89,13 +115,25 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("Validation failed"))
                 .andExpect(jsonPath("$.details.email").value("Email must be valid"));
 
-        verify(userService, never()).register(any());
+        verify(authService, never()).register(any());
+    }
+
+    // T-SEC-018: Bean Validation se evalúa antes de cualquier lógica de seguridad.
+    @Test
+    void shouldReturn400WhenPasswordIsTooShort() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(SHORT_PASSWORD_USER_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details.password").value("Password must be between 12 and 72 characters"));
+
+        verify(authService, never()).register(any());
     }
 
     // TEST-CTRL-USR-003
     @Test
     void shouldReturn409WhenUsernameIsDuplicated() throws Exception {
-        when(userService.register(any(RegisterUserRequest.class)))
+        when(authService.register(any(RegisterUserRequest.class)))
                 .thenThrow(new DuplicateResourceException("Username already exists."));
 
         mockMvc.perform(post("/api/users")
@@ -106,13 +144,13 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.error").value("Conflict"))
                 .andExpect(jsonPath("$.message").value("Username already exists."));
 
-        verify(userService).register(any(RegisterUserRequest.class));
+        verify(authService).register(any(RegisterUserRequest.class));
     }
 
     // AC-CTRL008
     @Test
     void shouldReturn409WithoutInternalDetailsWhenEmailIsDuplicated() throws Exception {
-        when(userService.register(any(RegisterUserRequest.class)))
+        when(authService.register(any(RegisterUserRequest.class)))
                 .thenThrow(new DuplicateResourceException("Email already exists."));
 
         mockMvc.perform(post("/api/users")
@@ -122,14 +160,18 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("Email already exists."))
                 .andExpect(jsonPath("$.details").isEmpty())
                 .andExpect(jsonPath("$.trace").doesNotExist());
+
+        verify(authService).register(any(RegisterUserRequest.class));
     }
 
-    // TEST-CTRL-USR-004
+    // TEST-CTRL-USR-004 (T-SEC-020: la identidad propia conserva el 200 original)
     @Test
     void shouldReturn200WhenFindingUserByEmail() throws Exception {
         when(userService.findByEmail("andrea@email.com")).thenReturn(andrea());
 
-        mockMvc.perform(get("/api/users/by-email").param("email", "andrea@email.com"))
+        mockMvc.perform(get("/api/users/by-email")
+                        .param("email", "andrea@email.com")
+                        .header("Authorization", bearer(andreaIdentity())))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.email").value("andrea@email.com"));
@@ -142,11 +184,22 @@ class UserControllerTest {
     void shouldReturn200WhenFindingUserByUsername() throws Exception {
         when(userService.findByUsername("andrea")).thenReturn(andrea());
 
-        mockMvc.perform(get("/api/users/by-username").param("username", "andrea"))
+        mockMvc.perform(get("/api/users/by-username")
+                        .param("username", "andrea")
+                        .header("Authorization", bearer(andreaIdentity())))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.username").value("andrea"));
 
         verify(userService).findByUsername("andrea");
+    }
+
+    // T-SEC-002: los datos de usuario no son públicos.
+    @Test
+    void shouldReturn401WhenConsultingUsersAnonymously() throws Exception {
+        mockMvc.perform(get("/api/users/by-email").param("email", "andrea@email.com"))
+                .andExpect(status().isUnauthorized());
+
+        verify(userService, never()).findByEmail(any());
     }
 }

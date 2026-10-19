@@ -8,6 +8,7 @@ import com.pulsepass.exception.DuplicateResourceException;
 import com.pulsepass.exception.ResourceNotFoundException;
 import com.pulsepass.mapper.UserMapper;
 import com.pulsepass.repository.UserRepository;
+import com.pulsepass.service.AuthorizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,16 +39,18 @@ class UserServiceImplTest {
     private UserRepository userRepository;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private AuthorizationService authorizationService;
 
     private UserServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new UserServiceImpl(userRepository, userMapper, CLOCK);
+        service = new UserServiceImpl(userRepository, userMapper, authorizationService, CLOCK);
     }
 
     private static RegisterUserRequest request(LocalDate birthDate) {
-        return new RegisterUserRequest("andrea", "Andrea@Email.com", "Andrea", "Perez",
+        return new RegisterUserRequest("andrea", "Andrea@Email.com", "clave-segura-123", "Andrea", "Perez",
                 "3001234567", "Santa Marta", birthDate);
     }
 
@@ -113,7 +116,8 @@ class UserServiceImplTest {
     @Test
     void register_missingUsername_throwsBusinessRule() {
         // ARRANGE
-        RegisterUserRequest invalid = new RegisterUserRequest(" ", "a@email.com", "A", "B", null, null, null);
+        RegisterUserRequest invalid = new RegisterUserRequest(
+                " ", "a@email.com", "clave-segura-123", "A", "B", null, null, null);
 
         // ACT + ASSERT
         assertThatThrownBy(() -> service.register(invalid))

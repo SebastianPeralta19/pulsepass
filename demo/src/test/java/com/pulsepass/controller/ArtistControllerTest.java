@@ -22,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ArtistController.class)
-class ArtistControllerTest {
+class ArtistControllerTest extends SecuredControllerTestBase {
 
     @Autowired
     private MockMvc mockMvc;

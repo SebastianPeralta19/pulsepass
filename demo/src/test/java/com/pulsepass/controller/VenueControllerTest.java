@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(VenueController.class)
-class VenueControllerTest {
+class VenueControllerTest extends SecuredControllerTestBase {
 
     @Autowired
     private MockMvc mockMvc;

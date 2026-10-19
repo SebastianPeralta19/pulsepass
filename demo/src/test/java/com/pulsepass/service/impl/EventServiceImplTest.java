@@ -8,6 +8,7 @@ import com.pulsepass.dto.response.EventResponse;
 import com.pulsepass.dto.response.EventSummaryResponse;
 import com.pulsepass.enums.EventCategory;
 import com.pulsepass.enums.EventStatus;
+import com.pulsepass.enums.Role;
 import com.pulsepass.exception.BusinessRuleException;
 import com.pulsepass.exception.DuplicateResourceException;
 import com.pulsepass.exception.ResourceNotFoundException;
@@ -15,6 +16,7 @@ import com.pulsepass.mapper.EventMapper;
 import com.pulsepass.repository.ArtistRepository;
 import com.pulsepass.repository.EventRepository;
 import com.pulsepass.repository.VenueRepository;
+import com.pulsepass.service.AuthorizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,12 +57,15 @@ class EventServiceImplTest {
     private ArtistRepository artistRepository;
     @Mock
     private EventMapper eventMapper;
+    @Mock
+    private AuthorizationService authorizationService;
 
     private EventServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new EventServiceImpl(eventRepository, venueRepository, artistRepository, eventMapper, CLOCK);
+        service = new EventServiceImpl(eventRepository, venueRepository, artistRepository, eventMapper,
+                authorizationService, CLOCK);
     }
 
     // ---------- fixtures ----------
@@ -102,6 +107,7 @@ class EventServiceImplTest {
         // ARRANGE
         Event event = event(EventStatus.DRAFT, FUTURE, venue(true));
         when(eventRepository.findByEventCode("CMF-2026")).thenReturn(Optional.of(event));
+        when(authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN)).thenReturn(true);
         stubMapper();
 
         // ACT
@@ -110,6 +116,34 @@ class EventServiceImplTest {
         // ASSERT
         assertThat(result.eventCode()).isEqualTo("CMF-2026");
         assertThat(result.venueName()).isEqualTo("Marina Convention Center");
+    }
+
+    // FR-SEC-EVT-02 / T-SEC-017: un anónimo no debe poder ver un borrador.
+    @Test
+    void findByCode_draftEventWithoutPrivileges_isHiddenAsNotFound() {
+        // ARRANGE
+        Event event = event(EventStatus.DRAFT, FUTURE, venue(true));
+        when(eventRepository.findByEventCode("CMF-2026")).thenReturn(Optional.of(event));
+        when(authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN)).thenReturn(false);
+
+        // ACT + ASSERT
+        assertThatThrownBy(() -> service.findByCode("CMF-2026"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("CMF-2026");
+    }
+
+    @Test
+    void findByCode_publishedEventIsVisibleWithoutPrivileges() {
+        // ARRANGE
+        Event event = event(EventStatus.PUBLISHED, FUTURE, venue(true));
+        when(eventRepository.findByEventCode("CMF-2026")).thenReturn(Optional.of(event));
+        stubMapper();
+
+        // ACT
+        EventResponse result = service.findByCode("CMF-2026");
+
+        // ASSERT
+        assertThat(result.status()).isEqualTo(EventStatus.PUBLISHED);
     }
 
     @Test
@@ -394,5 +428,41 @@ class EventServiceImplTest {
         // ASSERT
         assertThat(result).hasSize(1);
         verify(eventRepository).findByArtistStageName("Solar Beat");
+    }
+
+    // FR-SEC-EVT-06: la ruta pública sólo expone eventos publicados.
+    @Test
+    void findByArtist_hidesDraftEventsFromAnonymous() {
+        // ARRANGE
+        Event draft = event(EventStatus.DRAFT, FUTURE, venue(true));
+        Event published = event(EventStatus.PUBLISHED, FUTURE, venue(true));
+        when(eventRepository.findByArtistStageName("Solar Beat")).thenReturn(List.of(draft, published));
+        when(authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN)).thenReturn(false);
+        EventSummaryResponse summary = new EventSummaryResponse(1L, "CMF-2026", "Caribbean Music Fest 2026",
+                EventCategory.MUSIC, EventStatus.PUBLISHED, FUTURE, "VEN-SMR-01", "Marina Convention Center");
+        when(eventMapper.toSummary(published)).thenReturn(summary);
+
+        // ACT
+        List<EventSummaryResponse> result = service.findByArtist("Solar Beat");
+
+        // ASSERT
+        assertThat(result).containsExactly(summary);
+    }
+
+    @Test
+    void findByArtist_showsDraftEventsToPrivilegedRoles() {
+        // ARRANGE
+        Event draft = event(EventStatus.DRAFT, FUTURE, venue(true));
+        when(eventRepository.findByArtistStageName("Solar Beat")).thenReturn(List.of(draft));
+        when(authorizationService.hasAnyRole(Role.STAFF, Role.ADMIN)).thenReturn(true);
+        EventSummaryResponse summary = new EventSummaryResponse(1L, "CMF-2026", "Caribbean Music Fest 2026",
+                EventCategory.MUSIC, EventStatus.DRAFT, FUTURE, "VEN-SMR-01", "Marina Convention Center");
+        when(eventMapper.toSummary(draft)).thenReturn(summary);
+
+        // ACT
+        List<EventSummaryResponse> result = service.findByArtist("Solar Beat");
+
+        // ASSERT
+        assertThat(result).containsExactly(summary);
     }
 }

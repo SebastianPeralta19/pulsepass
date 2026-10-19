@@ -6,3 +6,11 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+
+pulsepass:
+  security:
+    jwt:
+      issuer: pulsepass-api-test
+      # Clave exclusiva del perfil de tests. Nunca se reutiliza fuera de pruebas.
+      secret-base64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      access-token-ttl: PT15M
