@@ -1,5 +1,6 @@
 package com.pulsepass.domain;
 
+import com.pulsepass.enums.Role;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,12 @@ public class User {
 
     @OneToOne(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private UserProfile profile;
+
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserCredential credential;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserRole> roles = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = false)
     private List<Ticket> tickets = new ArrayList<>();
@@ -77,5 +84,29 @@ public class User {
 
     public List<Ticket> getTickets() {
         return tickets;
+    }
+
+    public UserCredential getCredential() {
+        return credential;
+    }
+
+    public void setCredential(UserCredential credential) {
+        this.credential = credential;
+    }
+
+    public List<UserRole> getRoles() {
+        return roles;
+    }
+
+    public void addRole(UserRole role) {
+        this.roles.add(role);
+    }
+
+    public boolean hasRole(Role role) {
+        return roles.stream().anyMatch(userRole -> userRole.getRole() == role);
+    }
+
+    public List<Role> getRoleNames() {
+        return roles.stream().map(UserRole::getRole).toList();
     }
 }
