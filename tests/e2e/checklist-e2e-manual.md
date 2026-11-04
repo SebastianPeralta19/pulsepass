@@ -60,6 +60,7 @@ USER_A ya tenga al menos un ticket.
 | [ ] | TC-AUTH-004 | POST | `/api/auth/login` | ANÓNIMO | 401 genérico |
 | [ ] | TC-AUTH-006 | GET | `/api/auth/me` | USER_A | 200, rol USER |
 | [ ] | TC-AUTH-007 | GET | `/api/auth/me` | ANÓNIMO | 401 |
+| [ ] | TC-AUTH-008 | GET | `/api/auth/me` | ANÓNIMO | 401, Authorization sin esquema Bearer |
 | [ ] | TC-AUTH-009 | GET | `/api/auth/me` | USER_A | 401, token alterado |
 | [ ] | TC-AUTH-010 | GET | `/api/auth/me` | USER_A | 401, JWT expirado; preparación externa |
 | [ ] | TC-AUTH-011 | GET | `/api/auth/me` | USER_B | 401, otra clave o issuer; preparación externa |
@@ -99,6 +100,7 @@ USER_A ya tenga al menos un ticket.
 |---|---|---|---|---|---|
 | [ ] | TC-BIZ-007 | POST | `/api/tickets` | USER_A | 201, copiar a `ticketCancelableCode` |
 | [ ] | TC-BIZ-008 | GET | `/api/tickets/{{ticketCancelableCode}}` | USER_A | 200, PAID |
+| [ ] | TC-BIZ-008-L | GET | `/api/tickets/by-user?email={{userAEmail}}` | USER_A | 200, listado propio |
 | [ ] | TC-BIZ-009 | GET | `/api/events/{{publishedEventCode}}/tickets/paid` | STAFF | 200, solo PAID |
 | [ ] | TC-TKT-03-nominal | GET | `/api/tickets/by-user?email={{userAEmail}}` | USER_A | 200, solo tickets propios |
 | [ ] | TC-SEC-010 | GET | `/api/tickets/by-user?email={{userAEmail}}` | USER_B | 403, tickets ajenos |
@@ -108,6 +110,7 @@ USER_A ya tenga al menos un ticket.
 | [ ] | TC-BIZ-011 | PATCH | `/api/tickets/{{ticketCancelableCode}}/cancel` | USER_A | 409 |
 | [ ] | TC-BIZ-012 | POST | `/api/tickets` | USER_A | 201, copiar a `ticketUsableCode` |
 | [ ] | TC-BIZ-012-U | PATCH | `/api/tickets/{{ticketUsableCode}}/use` | STAFF | 200, USED |
+| [ ] | TC-BIZ-012-R | GET | `/api/tickets/{{ticketUsableCode}}` | USER_A | 200, USED sin mutación |
 | [ ] | TC-BIZ-013 | PATCH | `/api/tickets/{{ticketUsableCode}}/use` | STAFF | 409 |
 | [ ] | TC-BIZ-014-NP | POST | `/api/tickets` | USER_A | 409, evento no publicado |
 | [ ] | TC-BIZ-014-AGE | POST | `/api/tickets` | USER_B | 409, edad mínima |
@@ -116,6 +119,7 @@ USER_A ya tenga al menos un ticket.
 | [ ] | TC-BIZ-014-CAP-3 | POST | `/api/tickets` | USER_A | 201, cupo 3 de 3 y SOLD_OUT |
 | [ ] | TC-BIZ-014-CAP-4 | POST | `/api/tickets` | USER_A | 409, sin aforo |
 | [ ] | TC-BIZ-015-EVT | POST | `/api/tickets` | USER_A | 404, evento inexistente |
+| [ ] | TC-BIZ-015-TKT | GET | `/api/tickets/{{runId}}-TICKET-NO-EXISTE` | USER_A | 404, ticket inexistente |
 
 ## 07 Seguridad / escenarios negativos
 
@@ -131,8 +135,11 @@ USER_A ya tenga al menos un ticket.
 | [ ] | TC-SEC-006 | GET | `/api/users/by-email?email={{userAEmail}}` | USER_B | 403 |
 | [ ] | TC-SEC-008 | POST | `/api/tickets` | USER_A | 403, compra a nombre de USER_B |
 | [ ] | TC-SEC-009 | GET | `/api/tickets/{{ticketCancelableCode}}` | USER_B | 403 |
+| [ ] | TC-SEC-009-R | GET | `/api/tickets/{{ticketCancelableCode}}` | USER_A | 200, sin mutación |
 | [ ] | TC-SEC-011 | PATCH | `/api/tickets/{{ticketCancelableCode}}/cancel` | USER_B | 403 |
+| [ ] | TC-SEC-011-R | GET | `/api/tickets/{{ticketCancelableCode}}` | USER_A | 200, sin mutación |
 | [ ] | TC-SEC-012 | PATCH | `/api/tickets/{{ticketCancelableCode}}/use` | USER_B | 403 |
+| [ ] | TC-SEC-012-R | GET | `/api/tickets/{{ticketCancelableCode}}` | USER_A | 200, sin mutación |
 | [ ] | TC-SEC-013 | GET | `/api/events/{{publishedEventCode}}/tickets/paid` | USER_A | 403 |
 | [ ] | TC-SEC-014 | PATCH | `/api/tickets/{{staffUseTicketCode}}/use` | STAFF | 200, ticket del seed pasa a USED |
 | [ ] | TC-SEC-015 | GET | `/api/events/{{draftEventCode}}` | ADMIN | 200, DRAFT |
@@ -140,6 +147,7 @@ USER_A ya tenga al menos un ticket.
 | [ ] | TC-SEC-016-R | POST | `/api/auth/login` | ANÓNIMO | 200, copiar token temporal |
 | [ ] | TC-SEC-016-A | POST | `/api/events` | USER_B | 403, con token temporal; restaurar después |
 | [ ] | TC-SEC-017 | GET | `/api/events/{{publishedEventCode}}/tickets/paid` | STAFF | 403, rol revocado; preparación externa |
+| [ ] | TC-SEC-017-R | GET | `/api/events/{{publishedEventCode}}/tickets/paid` | ADMIN | 200, sin mutación |
 
 ## 08 Validaciones y errores HTTP
 
@@ -168,7 +176,7 @@ USER_A ya tenga al menos un ticket.
 
 ## Cierre
 
-- Total de casos: 91.
+- Total de casos: 99.
 - Si un caso queda bloqueado por un dato previo, regístralo como `BLOCKED`, no
   como `FAIL`.
 - Si un caso falla, conserva la respuesta y el request exactos en el registro.

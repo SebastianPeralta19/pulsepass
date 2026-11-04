@@ -17,7 +17,7 @@ datos personales reales.
 | URL base | `http://localhost:8080` |
 | Postman | NOT RUN |
 | JVM | Java 21 |
-| Observaciones | Colección escrita con 91 requests; aún no ejecutada |
+| Observaciones | Colección escrita con 99 requests; aún no ejecutada |
 
 ## Resumen
 
@@ -26,8 +26,8 @@ datos personales reales.
 | PASS | 0 |
 | FAIL | 0 |
 | BLOCKED | 0 |
-| NOT RUN | 91 |
-| Total | 91 |
+| NOT RUN | 99 |
+| Total | 99 |
 
 ## Defectos y observaciones conocidos
 
@@ -58,21 +58,8 @@ no se modifica código en esta entrega.
 
 ### Casos del PRD sin request en la colección
 
-Según `matriz-cobertura.md`, estos casos del plan previo no tienen request en
-`PulsePass-Manual-E2E.postman_collection.json`:
-
-| Caso | Estado |
-|---|---|
-| TC-AUTH-008 | Sin request |
-| TC-BIZ-008-L | Sin request |
-| TC-BIZ-012-R | Sin request |
-| TC-BIZ-015-TKT | Sin request |
-| TC-SEC-009-R | Sin request |
-| TC-SEC-011-R | Sin request |
-| TC-SEC-012-R | Sin request |
-| TC-SEC-017-R | Sin request |
-
-No se presentan como cobertura completa del PRD.
+Ninguno: los 8 casos del plan previo ya tienen request en la colección. No se
+presentan como cobertura completa del PRD.
 
 ## 00 Preparación / conectividad
 
@@ -109,6 +96,7 @@ No se presentan como cobertura completa del PRD.
 | TC-AUTH-004 | NOT RUN | | | |
 | TC-AUTH-006 | NOT RUN | | | |
 | TC-AUTH-007 | NOT RUN | | | |
+| TC-AUTH-008 | NOT RUN | | | Esperado 401; Authorization sin Bearer |
 | TC-AUTH-009 | NOT RUN | | | |
 | TC-AUTH-010 | NOT RUN | | | Preparación externa |
 | TC-AUTH-011 | NOT RUN | | | Preparación externa |
@@ -148,6 +136,7 @@ No se presentan como cobertura completa del PRD.
 |---|---|---|---|---|
 | TC-BIZ-007 | NOT RUN | | | |
 | TC-BIZ-008 | NOT RUN | | | |
+| TC-BIZ-008-L | NOT RUN | | | Esperado 200; listado propio |
 | TC-BIZ-009 | NOT RUN | | | |
 | TC-TKT-03-nominal | NOT RUN | | | Esperado 200; ejecutar tras TC-BIZ-007 |
 | TC-SEC-010 | NOT RUN | | | Esperado 403; tickets ajenos |
@@ -157,6 +146,7 @@ No se presentan como cobertura completa del PRD.
 | TC-BIZ-011 | NOT RUN | | | |
 | TC-BIZ-012 | NOT RUN | | | |
 | TC-BIZ-012-U | NOT RUN | | | |
+| TC-BIZ-012-R | NOT RUN | | | Esperado 200; USED sin mutación |
 | TC-BIZ-013 | NOT RUN | | | |
 | TC-BIZ-014-NP | NOT RUN | | | |
 | TC-BIZ-014-AGE | NOT RUN | | | |
@@ -165,6 +155,7 @@ No se presentan como cobertura completa del PRD.
 | TC-BIZ-014-CAP-3 | NOT RUN | | | |
 | TC-BIZ-014-CAP-4 | NOT RUN | | | |
 | TC-BIZ-015-EVT | NOT RUN | | | |
+| TC-BIZ-015-TKT | NOT RUN | | | Esperado 404; ticket inexistente |
 
 ## 07 Seguridad / escenarios negativos
 
@@ -180,8 +171,11 @@ No se presentan como cobertura completa del PRD.
 | TC-SEC-006 | NOT RUN | | | |
 | TC-SEC-008 | NOT RUN | | | |
 | TC-SEC-009 | NOT RUN | | | |
+| TC-SEC-009-R | NOT RUN | | | Esperado 200; sin mutación |
 | TC-SEC-011 | NOT RUN | | | |
+| TC-SEC-011-R | NOT RUN | | | Esperado 200; sin mutación |
 | TC-SEC-012 | NOT RUN | | | |
+| TC-SEC-012-R | NOT RUN | | | Esperado 200; sin mutación |
 | TC-SEC-013 | NOT RUN | | | |
 | TC-SEC-014 | NOT RUN | | | Consume el ticket del seed |
 | TC-SEC-015 | NOT RUN | | | |
@@ -189,6 +183,7 @@ No se presentan como cobertura completa del PRD.
 | TC-SEC-016-R | NOT RUN | | | Token temporal |
 | TC-SEC-016-A | NOT RUN | | | Restaurar `userBToken` |
 | TC-SEC-017 | NOT RUN | | | Preparación externa |
+| TC-SEC-017-R | NOT RUN | | | Esperado 200; ADMIN relee |
 
 ## 08 Validaciones y errores HTTP
 
@@ -223,6 +218,6 @@ No se presentan como cobertura completa del PRD.
 | Casos PASS | 0 |
 | Casos FAIL | 0 |
 | Casos BLOCKED | 0 |
-| Casos NOT RUN | 91 |
+| Casos NOT RUN | 99 |
 | Incidencias abiertas | 5 observaciones conocidas (ver Defectos y observaciones conocidos); no se ejecutó |
 | Firma del ejecutor | NOT RUN |

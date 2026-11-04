@@ -11,7 +11,7 @@ controles de seguridad de la API real, sin automatizar las aserciones.
 
 | Archivo | Contenido |
 |---|---|
-| `postman/PulsePass-Manual-E2E.postman_collection.json` | 91 requests organizados en 10 carpetas. |
+| `postman/PulsePass-Manual-E2E.postman_collection.json` | 99 requests organizados en 10 carpetas. |
 | `postman/PulsePass-local.postman_environment.json` | 29 variables locales; las sensibles están vacías y marcadas como `secret`. |
 | `fixtures/seed-e2e.sql` | Fixture de venue, eventos, usuarios privilegiados, roles y ticket aislado. |
 | `fixtures/README.md` | Preparación de la base, hashes, casos externos y repetición. |
@@ -150,7 +150,7 @@ La colección y el ambiente fueron escritos y están listos para importar. **No 
 ha ejecutado la colección contra una API levantada en esta sesión.** El registro
 inicial está en `NOT RUN`; no declares PASS sin evidencia manual.
 
-La colección cubre 91 requests y las 22 rutas lógicas. Las brechas de reglas y
+La colección cubre 99 requests y las 22 rutas lógicas. Las brechas de reglas y
 los casos planificados que no están incluidos se documentan en
 `matriz-cobertura.md`.
 
