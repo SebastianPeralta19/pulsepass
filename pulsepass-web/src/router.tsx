@@ -7,7 +7,7 @@ import RutaProtegida from './layouts/RutaProtegida'
 import RutaPorRol from './layouts/RutaPorRol'
 import SoloAnonimo from './layouts/SoloAnonimo'
 
-function pagina(modulo: () => Promise<{ default: () => JSX.Element }>) {
+function pagina(modulo: () => Promise<{ default: () => JSX.Element | null }>) {
   return async () => {
     const { default: Component } = await modulo()
     return { Component }
