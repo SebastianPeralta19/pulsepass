@@ -81,3 +81,28 @@ Leídos en `demo/src/main/java/com/pulsepass/…`:
 - El listado "creados en esta sesión" de ADMIN se guarda en estado de aplicación (GAP-01) y se
   pierde al recargar, tal como indica el PRD; no se usa `sessionStorage` para ese dato.
 - No se implementan pagos, QR, refresh token ni nada fuera del PRD.
+
+## Estado final de la implementación
+
+- Rama `layer-frotend`, commits propios sin push. El stash Postman original sigue en `stash@{0}`.
+- Se implementaron las 11 etapas: contratos zod, scaffold, UI genérica, router/layouts/guardas,
+  `lib/http.ts`, catálogo público, auth real, tickets USER, STAFF/ADMIN, pruebas MSW y entrega.
+- `main.tsx` monta `QueryClientProvider → AuthProvider → CreadosProvider → RouterProvider`.
+- `CreadosProvider` mantiene en memoria los códigos creados en la sesión (GAP-01); se pierde al
+  recargar, según PRD.
+- El botón de compra se deshabilita cuando `evento.status === 'SOLD_OUT'`; el backend sigue siendo
+  la autoridad de capacidad y reglas de negocio (GAP-04).
+- Se respeta el contador visual `0/500` de descripción mientras la validación zod usa el máximo real
+  del backend (1000), tal como se acordó arriba.
+- Las rutas de test son `src/test/handlers.ts` y `src/test/utilidades.tsx`, equivalentes a las
+  sugeridas `src/test/mocks/handlers.ts` y `src/test/utils.tsx` de la estructura del PRD; no cambian
+  la cobertura ni el comportamiento.
+- Se implementaron las 50 pruebas listadas en la sección 21 del PRD (el resumen hablaba de 43, pero
+  la enumeración completa suma 50). Todas pasan con MSW; no se requirió backend real.
+- Los componentes de página se refactorizaron para no superar ~150 líneas; el mayor queda en 148.
+- Verificación final: `npm run lint`, `npm run build` y `npm test` sin errores (50/50).
+- Auditoría de anti-patrones: sin `react-router-dom`, `BrowserRouter`, `React.FC`, `any`, `enum` TS
+  para dominio, `localStorage`, cookies, `dangerouslySetInnerHTML`, clases dinámicas por interpolación
+  ni `console.log`. Los `z.enum` son de zod y están permitidos.
+- No verificable en este entorno: comparación visual pixel-a-pixel con `docs/diseno/` y auditoría
+  Lighthouse/axe en navegador real.
