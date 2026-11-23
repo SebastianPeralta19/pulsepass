@@ -99,14 +99,43 @@ Leídos en `demo/src/main/java/com/pulsepass/…`:
   la cobertura ni el comportamiento.
 - Se implementaron las 50 pruebas listadas en la sección 21 del PRD (el resumen hablaba de 43, pero
   la enumeración completa suma 50) más 6 pruebas adicionales de invalidación de caché (`QT-FE-008`),
-  para un total de 56. Todas pasan con MSW; no se requirió backend real.
+  para un total de 57 (6 de caché + 1 de navegación por teclado). Todas pasan con MSW; no se requirió
+  backend real.
 - MSW cubre 22 handlers, no 23: el esquema de la sección 17 dice “23 endpoints”, pero el conteo real
   de controladores es 20 operaciones de negocio + 2 de autenticación. Se documenta la discrepancia y
   se sigue el contrato implementado en `demo/`, sin inventar un endpoint inexistente.
 - Los componentes de página se refactorizaron para no superar ~150 líneas; el mayor queda en 148.
-- Verificación final: `npm run lint`, `npm run build` y `npm test` sin errores (56/56).
+- Verificación final: `npm run lint`, `npm run build` y `npm test` sin errores (57/57).
 - Auditoría de anti-patrones: sin `react-router-dom`, `BrowserRouter`, `React.FC`, `any`, `enum` TS
   para dominio, `localStorage`, cookies, `dangerouslySetInnerHTML`, clases dinámicas por interpolación
   ni `console.log`. Los `z.enum` son de zod y están permitidos.
 - No verificable en este entorno: comparación visual pixel-a-pixel con `docs/diseno/` y auditoría
   Lighthouse/axe en navegador real.
+
+## Matriz DoD (sección 30.2)
+
+- [x] 20 rutas/páginas en `src/router.tsx`; Inicio y Layout eager, las otras 18 con `lazy`.
+- [x] `createBrowserRouter` desde `react-router` + `RouterProvider` desde `react-router/dom`.
+- [x] 20 operaciones de negocio + 3 endpoints de auth alcanzables desde UI/tests (login, registro, `/auth/me`).
+- [x] Tipos derivados con `z.infer`; `lib/http.ts` valida `data` y `ErrorResponse` con zod.
+- [x] Formularios con React Hook Form + resolver zod.
+- [x] JWT solo en memoria/sessionStorage y en `Authorization`; tests `TEST-FE-LIB-001/002`.
+- [x] `RutaProtegida`, `RutaPorRol` y `SoloAnonimo`; handled server 401/403 en `lib/http.ts`/`AuthContext`.
+- [x] 401 cierra sesión, llama `queryClient.clear()` y redirige con motivo `expirada`.
+- [x] Mapa 400/401/403/404/409/500 en textos y estados, cubierto por `TEST-FE-*`.
+- [x] Compra toma el email de `sesion.usuario.email`; no hay campo editable de email en `ComprarTicket`.
+- [x] Reglas de negocio fuera de componentes: zod valida forma, backend decide capacidad/estado/propiedad.
+- [x] Cada pantalla de datos tiene estados de carga, vacío y error (`Cargando`, `EstadoVacio`, `EstadoError`).
+- [x] Clases Tailwind estáticas; auditoría de interpolaciones `bg-${}`/`text-${}` sin coincidencias.
+- [ ] Comparación visual exacta con `docs/diseno/`: no ejecutable por el modelo; se reconstruyó estructura,
+  textos, iconos, estados y paleta desde los artboards y tablas del PRD.
+- [x] Variantes móvil y modo oscuro implementadas; `TEST-FE-GEN-004/005` cubren menú y foco.
+- [x] Layout desde 360 px (breakpoints `sm`/`md`), skip link y foco visible global.
+- [x] Sin `any`, `React.FC`, `localStorage` para token ni `dangerouslySetInnerHTML` con datos de API.
+- [x] 57 pruebas Vitest + Testing Library + MSW en verde.
+- [x] `npm run lint`, `npm run build`, `npm test` y smoke `npm run dev` (HTTP 200) en verde.
+- [x] Sin secretos; `.env.example` con `VITE_API_BASE_URL=/api`.
+- [x] README documenta variables, comandos, roles demo y rutas principales.
+
+Único ítem no ejecutable aquí es la comparación visual/Lighthouse en navegador real; queda registrado
+como limitación, no como fallo de implementación.

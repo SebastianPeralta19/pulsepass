@@ -113,4 +113,17 @@ describe('TEST-FE-GEN', () => {
     expect(boton).toHaveAttribute('aria-expanded', 'false')
     expect(boton).toHaveFocus()
   })
+
+  it('TEST-FE-GEN-005: Tab alcanza el enlace Saltar al contenido', async () => {
+    renderConProveedores(<Layout />, { ruta: '/' })
+    const usuarioEvent = userEvent.setup()
+
+    await usuarioEvent.tab()
+
+    const saltar = screen.getByRole('link', { name: 'Saltar al contenido' })
+    expect(saltar).toHaveFocus()
+    expect(saltar).toHaveAttribute('href', '#contenido')
+    expect(saltar.className).toContain('focus:not-sr-only')
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'contenido')
+  })
 })

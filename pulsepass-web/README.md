@@ -23,7 +23,7 @@ npm run dev
 | `npm run dev` | Servidor Vite en `http://localhost:5173`; proxy `/api` → `http://localhost:8080`. |
 | `npm run build` | `tsc --noEmit` estricto + build de producción. |
 | `npm run lint` | ESLint sobre todo el proyecto. |
-| `npm test` | Vitest con jsdom y MSW; 56 pruebas sin red real. |
+| `npm test` | Vitest con jsdom y MSW; 57 pruebas sin red real. |
 
 ## Configuración
 
@@ -72,7 +72,7 @@ src/
 ├── componentes/             UI genérica y subcomponentes de presentación
 ├── funcionalidades/         auth, eventos, artistas, sedes, usuarios, tickets: api/tipos/hooks
 ├── pages/                   páginas de ruta
-└── test/                    setup, MSW handlers, fixtures, utilidades y 56 pruebas
+└── test/                    setup, MSW handlers, fixtures, utilidades y 57 pruebas
 ```
 
 Flujo de datos: **página → hook de TanStack Query → api.ts → lib/http.ts → API**. Las respuestas externas se validan con zod y los tipos se derivan con `z.infer`. Los errores pasan por `ApiError` (`status`, `message`, `details`).
@@ -93,7 +93,7 @@ El token se restaura al abrir la pestaña, se valida con zod y se descarta si ex
 
 ## Pruebas
 
-`npm test` ejecuta 56 pruebas (todas las IDs `TEST-FE-*` del PRD) con MSW cubriendo las 22 operaciones reales confirmadas en los controladores (20 de negocio + 2 de autenticación). El esquema del PRD menciona “23 endpoints”, pero el conteo de `@RequestMapping` del backend da 22; se sigue el backend. `renderConProveedores` monta QueryClient, AuthContext, CreadosProvider y MemoryRouter. No se usa backend real ni reloj fijo distinto del necesario para tokens.
+`npm test` ejecuta 57 pruebas (todas las IDs `TEST-FE-*` del PRD) con MSW cubriendo las 22 operaciones reales confirmadas en los controladores (20 de negocio + 2 de autenticación). El esquema del PRD menciona “23 endpoints”, pero el conteo de `@RequestMapping` del backend da 22; se sigue el backend. `renderConProveedores` monta QueryClient, AuthContext, CreadosProvider y MemoryRouter. No se usa backend real ni reloj fijo distinto del necesario para tokens.
 
 ## Diseño y limitaciones
 
