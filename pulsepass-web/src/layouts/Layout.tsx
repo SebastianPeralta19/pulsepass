@@ -109,7 +109,7 @@ function MenuUsuario() {
 }
 
 export default function Layout() {
-  const { sesion, cerrarSesion } = useAuth()
+  const { sesion, cerrarSesion, registrarNavegador } = useAuth()
   const navigate = useNavigate()
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [oscuro, setOscuro] = useState(() => {
@@ -123,6 +123,11 @@ export default function Layout() {
   const esUser = roles.includes('USER')
   const esStaff = roles.includes('STAFF') || roles.includes('ADMIN')
   const esAdmin = roles.includes('ADMIN')
+
+  useEffect(() => {
+    registrarNavegador(navigate)
+    return () => registrarNavegador(null)
+  }, [navigate, registrarNavegador])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', oscuro)
