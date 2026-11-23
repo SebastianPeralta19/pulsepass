@@ -98,9 +98,13 @@ Leídos en `demo/src/main/java/com/pulsepass/…`:
   sugeridas `src/test/mocks/handlers.ts` y `src/test/utils.tsx` de la estructura del PRD; no cambian
   la cobertura ni el comportamiento.
 - Se implementaron las 50 pruebas listadas en la sección 21 del PRD (el resumen hablaba de 43, pero
-  la enumeración completa suma 50). Todas pasan con MSW; no se requirió backend real.
+  la enumeración completa suma 50) más 6 pruebas adicionales de invalidación de caché (`QT-FE-008`),
+  para un total de 56. Todas pasan con MSW; no se requirió backend real.
+- MSW cubre 22 handlers, no 23: el esquema de la sección 17 dice “23 endpoints”, pero el conteo real
+  de controladores es 20 operaciones de negocio + 2 de autenticación. Se documenta la discrepancia y
+  se sigue el contrato implementado en `demo/`, sin inventar un endpoint inexistente.
 - Los componentes de página se refactorizaron para no superar ~150 líneas; el mayor queda en 148.
-- Verificación final: `npm run lint`, `npm run build` y `npm test` sin errores (50/50).
+- Verificación final: `npm run lint`, `npm run build` y `npm test` sin errores (56/56).
 - Auditoría de anti-patrones: sin `react-router-dom`, `BrowserRouter`, `React.FC`, `any`, `enum` TS
   para dominio, `localStorage`, cookies, `dangerouslySetInnerHTML`, clases dinámicas por interpolación
   ni `console.log`. Los `z.enum` son de zod y están permitidos.
