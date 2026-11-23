@@ -6,6 +6,7 @@ import Cargando from '../componentes/Cargando'
 import { CodigoTexto } from '../componentes/CodigoTexto'
 import EstadoError from '../componentes/EstadoError'
 import EstadoVacio from '../componentes/EstadoVacio'
+import FiltrosTickets from '../componentes/FiltrosTickets'
 import Tabla from '../componentes/Tabla'
 import type { Columna } from '../componentes/Tabla'
 import { useAuth } from '../funcionalidades/auth/AuthContext'
@@ -16,14 +17,6 @@ import { formatearCOP, formatearFecha } from '../lib/formato'
 import { RUTAS } from '../lib/rutas'
 
 const FiltroEstadoSchema = z.enum(['PAID', 'USED', 'CANCELLED', 'RESERVED'])
-
-const FILTROS = [
-  { valor: '', etiqueta: 'Todos' },
-  { valor: 'PAID', etiqueta: 'Pagados' },
-  { valor: 'USED', etiqueta: 'Usados' },
-  { valor: 'CANCELLED', etiqueta: 'Cancelados' },
-  { valor: 'RESERVED', etiqueta: 'Reservados' },
-]
 
 const COLUMNAS: Columna<TicketResponse>[] = [
   {
@@ -75,22 +68,7 @@ export default function MisTickets() {
         Mis tickets
       </h1>
 
-      <div
-        role="group"
-        aria-label="Filtrar tickets por estado"
-        className="mt-6 flex flex-wrap gap-2"
-      >
-        {FILTROS.map((filtro) => (
-          <Boton
-            key={filtro.valor}
-            variante={estado === filtro.valor || (!estado && !filtro.valor) ? 'primario' : 'secundario'}
-            aria-pressed={estado === filtro.valor || (!estado && !filtro.valor)}
-            onClick={() => cambiarEstado(filtro.valor)}
-          >
-            {filtro.etiqueta}
-          </Boton>
-        ))}
-      </div>
+      <FiltrosTickets estado={estado} onCambiar={cambiarEstado} />
 
       <p aria-live="polite" className="mt-6 text-sm font-medium text-slate-600 dark:text-slate-400">
         {filtrados.length} tickets

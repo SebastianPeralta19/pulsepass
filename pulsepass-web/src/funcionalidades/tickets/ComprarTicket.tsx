@@ -39,7 +39,13 @@ function mensajeCompra(error: unknown): { mensaje: string; detalleTipo: string }
   return { mensaje: error.message, detalleTipo: '' }
 }
 
-export default function ComprarTicket({ eventCode }: { eventCode: string }) {
+export default function ComprarTicket({
+  eventCode,
+  deshabilitado = false,
+}: {
+  eventCode: string
+  deshabilitado?: boolean
+}) {
   const { sesion } = useAuth()
   const navegar = useNavigate()
   const ubicacion = useLocation()
@@ -95,9 +101,14 @@ export default function ComprarTicket({ eventCode }: { eventCode: string }) {
 
   return (
     <div>
-      <Boton onClick={abrir} className="w-full">
+      <Boton onClick={abrir} className="w-full" disabled={deshabilitado}>
         Comprar entrada
       </Boton>
+      {deshabilitado ? (
+        <div className="mt-3">
+          <Aviso tipo="info" mensaje="Las entradas para este evento están agotadas." />
+        </div>
+      ) : null}
       {autenticado && !esUser ? (
         <div className="mt-3">
           <Aviso tipo="error" mensaje="Solo los usuarios USER pueden comprar entradas." />
