@@ -1,0 +1,12 @@
+# Evidencias y artefactos locales de una corrida manual.
+evidence/
+captures/
+*.log
+*.tmp
+
+# Metadatos locales de Postman.
+.postman/
+postman/.postman/
+
+# Registros con datos de una corrida real.
+registro-ejecucion-local.md
