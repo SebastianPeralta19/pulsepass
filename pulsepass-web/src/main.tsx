@@ -5,13 +5,16 @@ import { RouterProvider } from 'react-router/dom'
 import './index.css'
 import { queryClient } from './lib/queryClient'
 import { AuthProvider } from './funcionalidades/auth/AuthContext'
+import { CreadosProvider } from './funcionalidades/eventos/CreadosContext'
 import { router } from './router'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <RouterProvider router={router} />
+        <CreadosProvider>
+          <RouterProvider router={router} />
+        </CreadosProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
