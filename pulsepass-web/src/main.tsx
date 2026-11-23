@@ -1,20 +1,18 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { RouterProvider } from 'react-router/dom'
 import './index.css'
-
-function PantallaPrueba() {
-  return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="font-titulo text-3xl font-bold text-marca-600 dark:text-marca-500">
-        PulsePass
-      </h1>
-      <p className="mt-2 text-slate-600 dark:text-slate-400">Frontend Fase 5</p>
-    </main>
-  )
-}
+import { queryClient } from './lib/queryClient'
+import { AuthProvider } from './funcionalidades/auth/AuthContext'
+import { router } from './router'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <PantallaPrueba />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </QueryClientProvider>
   </StrictMode>,
 )
